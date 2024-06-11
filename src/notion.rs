@@ -32,7 +32,7 @@ impl FromStr for Mood {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-struct NotionMoodLog {
+struct MoodLog {
     datetime: time::OffsetDateTime,
     mood: Mood,
     day_one_markdown_content: String,
@@ -49,7 +49,7 @@ fn parse_datetime(datetime_line: &str) -> OffsetDateTime {
         .assume_offset(offset!(+1))
 }
 
-fn parse_file(content: &str) -> NotionMoodLog {
+fn parse_file(content: &str) -> MoodLog {
     let mut lines = content.lines();
     lines.next(); // Skip the title
     lines.next(); // Skip the empty line
@@ -64,7 +64,7 @@ fn parse_file(content: &str) -> NotionMoodLog {
     lines.next(); // Skip the Date line
     lines.next(); // Skip the empty line
 
-    NotionMoodLog {
+    MoodLog {
         datetime,
         mood,
         day_one_markdown_content: "".to_owned(),
@@ -81,7 +81,7 @@ mod tests {
         let content = "# ML 1970-01-01 00:01\n\nDate (human): 1970-01-01 01:01\nMood: -1\nDate: 1970/01/01 01:01 (GMT+1)\n\nHello, world!";
         assert_eq!(
             parse_file(content),
-            NotionMoodLog {
+            MoodLog {
                 datetime: time::OffsetDateTime::from_unix_timestamp(60).unwrap(),
                 mood: Mood::None,
                 day_one_markdown_content: "Hello, world!".to_owned(),
@@ -103,7 +103,7 @@ mod tests {
         let day_one_markdown_content = "Hello, world! This is my image:\n[{attachment}]".to_owned();
         assert_eq!(
             parse_file(content),
-            NotionMoodLog {
+            MoodLog {
                 datetime: time::OffsetDateTime::from_unix_timestamp(60).unwrap(),
                 mood: Mood::Two,
                 day_one_markdown_content,
@@ -121,7 +121,7 @@ mod tests {
             "- Hello, world! This is my image:\n\n[{attachment}]\n\n    - Hello again".to_owned();
         assert_eq!(
             parse_file(content),
-            NotionMoodLog {
+            MoodLog {
                 datetime: time::OffsetDateTime::from_unix_timestamp(60).unwrap(),
                 mood: Mood::Two,
                 day_one_markdown_content,
@@ -138,7 +138,7 @@ mod tests {
         let day_one_markdown_content = "Hello, world! This is my image:\n[{attachment}]\nAnd this is my other one:\n[{attachment}]".to_owned();
         assert_eq!(
             parse_file(content),
-            NotionMoodLog {
+            MoodLog {
                 datetime: time::OffsetDateTime::from_unix_timestamp(120).unwrap(),
                 mood: Mood::Five,
                 day_one_markdown_content,
