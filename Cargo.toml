@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
+urlencoding = "2"

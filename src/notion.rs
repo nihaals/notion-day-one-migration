@@ -32,7 +32,7 @@ impl FromStr for Mood {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-struct MoodLog {
+pub struct MoodLog {
     datetime: time::OffsetDateTime,
     mood: Mood,
     day_one_markdown_content: String,
@@ -49,7 +49,15 @@ fn parse_datetime(datetime_line: &str) -> OffsetDateTime {
         .assume_offset(offset!(+1))
 }
 
-fn parse_file(content: &str) -> MoodLog {
+/// Parses a path from something like "![Untitled](ML%201970-01-01%2000%2000%2001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/Untitled.png)".
+fn parse_attachment(line: &str) -> PathBuf {
+    let start = line.find('(').unwrap() + 1;
+    let end = line.find(')').unwrap();
+    let path = &line[start..end];
+    PathBuf::from(urlencoding::decode(path).unwrap().into_owned())
+}
+
+pub fn parse_file(content: &str) -> MoodLog {
     let mut lines = content.lines();
     lines.next(); // Skip the title
     lines.next(); // Skip the empty line
@@ -64,11 +72,24 @@ fn parse_file(content: &str) -> MoodLog {
     lines.next(); // Skip the Date line
     lines.next(); // Skip the empty line
 
+    let mut day_one_markdown_content = String::new();
+    let mut attachments = vec![];
+    for line in lines {
+        if line.trim().starts_with("![") {
+            attachments.push(parse_attachment(line.trim()));
+            day_one_markdown_content.push_str("[{attachment}]");
+        } else {
+            day_one_markdown_content.push_str(line);
+        }
+        day_one_markdown_content.push('\n');
+    }
+    assert_eq!(day_one_markdown_content.pop().unwrap(), '\n'); // Remove the trailing newline
+
     MoodLog {
         datetime,
         mood,
-        day_one_markdown_content: "".to_owned(),
-        attachments: vec![],
+        day_one_markdown_content,
+        attachments,
     }
 }
 
@@ -118,7 +139,7 @@ mod tests {
     fn test_file_indented() {
         let content = "# ML 1970-01-01 00:01\n\nDate (human): 1970-01-01 01:01\nMood: 2\nDate: 1970/01/01 01:01 (GMT+1)\n\n- Hello, world! This is my image:\n\n    ![Untitled](ML%201970-01-01%2000%2000%2001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/Untitled.png)\n\n    - Hello again!";
         let day_one_markdown_content =
-            "- Hello, world! This is my image:\n\n[{attachment}]\n\n    - Hello again".to_owned();
+            "- Hello, world! This is my image:\n\n[{attachment}]\n\n    - Hello again!".to_owned();
         assert_eq!(
             parse_file(content),
             MoodLog {
@@ -160,5 +181,13 @@ mod tests {
             parse_datetime("Date (human): 1970-01-01 01:01"),
             time::OffsetDateTime::from_unix_timestamp(60).unwrap()
         )
+    }
+
+    #[test]
+    fn test_attachment_parse() {
+        assert_eq!(
+            parse_attachment("![Untitled](ML%201970-01-01%2000%2000%2001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/Untitled.png)"),
+            PathBuf::from("ML 1970-01-01 00 00 01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/Untitled.png")
+        );
     }
 }
