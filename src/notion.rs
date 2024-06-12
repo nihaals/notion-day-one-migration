@@ -1,12 +1,10 @@
 use std::{path::PathBuf, str::FromStr};
 
-use time::{
-    macros::{format_description, offset},
-    OffsetDateTime, PrimitiveDateTime,
-};
+use time::{macros::format_description, OffsetDateTime, PrimitiveDateTime};
+use time_tz::PrimitiveDateTimeExt;
 
 #[derive(Debug, PartialEq, Eq)]
-enum Mood {
+pub enum Mood {
     None,
     One,
     Two,
@@ -33,20 +31,24 @@ impl FromStr for Mood {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct MoodLog {
-    datetime: time::OffsetDateTime,
-    mood: Mood,
-    day_one_markdown_content: String,
-    attachments: Vec<PathBuf>,
+    pub datetime: time::OffsetDateTime,
+    pub mood: Mood,
+    pub day_one_markdown_content: String,
+    pub attachments: Vec<PathBuf>,
 }
 
 /// Parses the datetime from a line like "Date (human): 1970-01-01 00:01".
 fn parse_datetime(datetime_line: &str) -> OffsetDateTime {
     let datetime = datetime_line.strip_prefix("Date (human): ").unwrap();
     let format = format_description!("[year]-[month]-[day] [hour]:[minute]");
-    PrimitiveDateTime::parse(datetime, &format)
+    match PrimitiveDateTime::parse(datetime, &format)
         .unwrap()
-        // TODO: Hardcoded
-        .assume_offset(offset!(+1))
+        .assume_timezone(time_tz::system::get_timezone().unwrap())
+    {
+        time_tz::OffsetResult::Some(datetime) => datetime,
+        time_tz::OffsetResult::Ambiguous(_, _) => unimplemented!(),
+        time_tz::OffsetResult::None => panic!(),
+    }
 }
 
 /// Parses a path from something like "![Untitled](ML%201970-01-01%2000%2000%2001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/Untitled.png)".
